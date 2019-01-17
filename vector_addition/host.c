@@ -1,12 +1,41 @@
 #include <stdio.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <getopt.h>
 #include <CL/cl.h>
 
 int arr_size = 10;
 
-int main() {
+int main(int argc, char ** argv) {
+	struct option * opt = (struct option *) malloc(2 * sizeof(struct option));
+	opt[0].name = "length";
+	opt[0].val = 'l';
+	opt[0].has_arg = required_argument;
+	opt[0].flag = 0;
+	opt[1].name = NULL;
+	opt[1].val = 0;
+	opt[1].has_arg = 0;
+	opt[1].flag = NULL;
+
+	//read in our command line arguments
+	char ch;
+	int ind;
+	while((ch = getopt_long(argc, argv, "l:", opt, &ind))) {
+		if(ch == -1) break;
+		switch(ch) {
+			case 'l':
+				arr_size = strtoimax(optarg, NULL, 10);
+				if(arr_size == 0 || errno == ERANGE) { fprintf(stderr, "error: invalid array length\n"); exit(1); }
+				break;
+			case '?':
+				exit(1);
+		}
+	}
+	free(opt);
+
 	// we got to read in the source code of the kernel
 	int fd = open("kernel.cl", O_RDONLY);
 	char * source_code = (char *) malloc(300 * sizeof(char));
@@ -88,6 +117,7 @@ int main() {
 	if(err != CL_SUCCESS) { fprintf(stderr, "error: could not read from buffer C to c\n"); exit(1); }
 	
 	// output
+	printf("vector length: %i (default 10)\n", arr_size);
 	printf("vector A: ");
 	int i;
 	for(i = 0; i < arr_size; i++) {
