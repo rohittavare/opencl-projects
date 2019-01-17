@@ -1,1 +1,1 @@
-### A collection of project exploring GPU acceleration using OpenCL
+### A collection of projects exploring GPU acceleration using OpenCL
