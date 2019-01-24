@@ -1,4 +1,7 @@
 #include <stdio.h>
+#include <getopt.h>
+#include <inttypes.h>
+#include <errno.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -6,7 +9,32 @@
 
 size_t arr_size = 10;
 
-int main() {
+int main(int argc, char ** argv) {
+	struct option * opt = (struct option *) malloc(2 * sizeof(struct option));
+        opt[0].name = "length";
+        opt[0].val = 'l';
+        opt[0].has_arg = required_argument;
+        opt[0].flag = 0;
+        opt[1].name = NULL;
+        opt[1].val = 0;
+        opt[1].has_arg = 0;
+        opt[1].flag = NULL;
+
+        //read in our command line arguments
+        char ch;
+        int ind;
+        while((ch = getopt_long(argc, argv, "l:", opt, &ind))) {
+                if(ch == -1) break;
+                switch(ch) {
+                        case 'l':
+                                arr_size = strtoimax(optarg, NULL, 10);
+                                if(arr_size == 0 || errno == ERANGE) { fprintf(stderr, "error: invalid array length\n"); exit(1); }
+                                break;
+                        case '?':
+                                exit(1);
+                }
+        }
+        free(opt);
 
 	// read in the kernel source
 	int file = open("kernel.cl", O_RDONLY);
@@ -44,7 +72,7 @@ int main() {
 	cl_context context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
 	if(err != CL_SUCCESS) { fprintf(stderr, "error: could not create context\n"); exit(1); }
 
-	// crete our unordered command queue
+	// create our unordered command queue
 	cl_queue_properties * properties = malloc(3 * sizeof(cl_queue_properties));
 	properties[0] = CL_QUEUE_PROPERTIES;
 	properties[1] = CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
@@ -138,6 +166,7 @@ int main() {
 
 	// output our results
 	printf("e = a*b + c*d\n");
+	printf("vector length: %i (default 10)\n", arr_size);
 	printf("a: ");
 	for(i = 0; i < arr_size; i++) {
 		printf("%i ", a[i]);
