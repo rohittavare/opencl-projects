@@ -6,10 +6,10 @@
 #include <inttypes.h>
 #include <CL/cl.h>
 
-const int m1 = 10;
-const int n1 = 10;
-const int m2 = 10;
-const int n2 = 10;
+const int m1 = 3;
+const int n1 = 2;
+const int m2 = 2;
+const int n2 = 3;
 
 void error(cl_int err, char * message) {
 	if(err != CL_SUCCESS) {
@@ -20,41 +20,40 @@ void error(cl_int err, char * message) {
 
 int main(int argc, char ** argv) {
 	
-	printf("A x B = C\n");
+	printf("A x B = C\n\n");
+	if(n1 != m2) {
+		fprintf(stderr, "error: invalid dimensions for matrices: %i x %i and %i x %i\n", m1, n1, m2, n2);
+		exit(1);
+	}
 
 	// create out data
-	int ** a = (int **)malloc(m1 * sizeof(int *));
-	int ** b = (int **)malloc(m2 * sizeof(int *));
-	int ** c = (int **)malloc(m1 * sizeof(int *));
+	int * a = (int *)malloc(m1 * n1 * sizeof(int));
+	int * b = (int *)malloc(m2 * n2 * sizeof(int));
+	int * c = (int *)malloc(m1 * n2 * sizeof(int));
 
 	int i;
 	int j;
 	printf("A: (%i x %i)\n", m1, n1);
 	for(i = 0; i < m1; i++) {
-		a[i] = (int *)malloc(n1 * sizeof(int));
 		for(j = 0; j < n1; j++) {
-			a[i][j] = (i + j) % n1; 
-			printf("%i ", a[i][j]);
+			a[i*n1 + j] = (i + j) % n1; 
+			printf("%i ", a[i*n1 +j]);
 		}
 		printf("\n");
 	}
-	printf("B: (%i x %i)\n", m2, n2);
+	printf("\nB: (%i x %i)\n", m2, n2);
 	for(i = 0; i < m2; i++) {
-		b[i] = (int *)malloc(n2 * sizeof(int));
 		for(j = 0; j < n2; j++) {
-			b[i][j] = (i + j) % m2;
-			printf("%i ", b[i][j]);
+			b[i*n2 + j] = (i + j) % n2;
+			printf("%i ", b[i*n2 + j]);
 		}
 		printf("\n");
-	}
-	for(i = 0; i < m1; i++) {
-		c[i] = (int *)malloc(n2 * sizeof(int));
 	}
 
 	// read in our kernel file
-	char * source = (char *) malloc(300 * sizeof(char));
+	char * source = (char *) malloc(1000 * sizeof(char));
 	int src_file = open("kernel.cl", O_RDONLY);
-	size_t src_len = read(src_file, source, 300);
+	size_t src_len = read(src_file, source, 1000);
 	
 	cl_int err;
 	
@@ -113,18 +112,18 @@ int main(int argc, char ** argv) {
 	origin[2] = 0;
 
 	size_t region[3];
-	region[0] = n1;
+	region[0] = n1 * sizeof(int);
 	region[1] = m1;
 	region[2] = 1;
 
 	size_t region2[3];
-	region2[0] = n2;
+	region2[0] = n2 * sizeof(int);
 	region2[1] = m2;
 	region2[2] = 1;
 
-	err = clEnqueueWriteBufferRect(queue, A, CL_FALSE, origin, origin, region, region[0] * sizeof(int), 0, region[0] * sizeof(int), 0, a, 0, NULL, e + 3);
+	err = clEnqueueWriteBufferRect(queue, A, CL_FALSE, origin, origin, region, 0, 0, 0, 0, a, 0, NULL, e + 3);
 	error(err, "could not enqueue rect buffer write from a to A");
-	err = clEnqueueWriteBufferRect(queue, B, CL_FALSE, origin, origin, region2, region2[0] * sizeof(int), 0, region[0] * sizeof(int), 0, b, 0, NULL, e + 4);
+	err = clEnqueueWriteBufferRect(queue, B, CL_FALSE, origin, origin, region2, 0, 0, 0, 0, b, 0, NULL, e + 4);
 	error(err, "could not enqueue rect buffer write from b to B");
 
 	// create our kernel
@@ -151,12 +150,12 @@ int main(int argc, char ** argv) {
 	error(err, "could not enqueue kernel");
 
 	size_t region3[3];
-	region3[0] = n2;
+	region3[0] = n2 * sizeof(int);
 	region3[1] = m1;
      	region3[2] = 1;	
 
 	// read in our data
-	err = clEnqueueReadBufferRect(queue, C, CL_TRUE, origin, origin, region3, region3[0] * sizeof(int), 0, region3[0] * sizeof(int), 0, c, 1, e + 5, NULL);
+	err = clEnqueueReadBufferRect(queue, C, CL_TRUE, origin, origin, region3, 0, 0, 0, 0, c, 1, e + 5, NULL);
 	error(err, "could not enqueue rect buffer read from C to c");
 
 	// wait for the queue to complete
@@ -166,11 +165,11 @@ int main(int argc, char ** argv) {
 	error(err, "could not finish queue");
 
 	// output our values
-	
-	printf("C: (%i x %i)\n", m1, n2);
+
+	printf("\nC: (%i x %i)\n", m1, n2);
 	for(i = 0; i < m1; i++) {
 		for(j = 0; j < n2; j++) {
-			printf("%i ", c[i][j]);
+			printf("%i ", c[i * m1 + j]);
 		}
 		printf("\n");
 	}
